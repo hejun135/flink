@@ -168,12 +168,13 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			configureFileSystems(configuration, pluginManager);
 
 			SecurityContext securityContext = installSecurityContext(configuration);
-
+			//此处处理异步线程调用
 			securityContext.runSecured((Callable<Void>) () -> {
-				runCluster(configuration, pluginManager);
+				//运行集群
+				runCluster(configuration, pluginManager);//注意此处启动集群
 
 				return null;
-			});
+			});//其后为异常处理
 		} catch (Throwable t) {
 			final Throwable strippedThrowable = ExceptionUtils.stripException(t, UndeclaredThrowableException.class);
 
@@ -208,7 +209,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 	private void runCluster(Configuration configuration, PluginManager pluginManager) throws Exception {
 		synchronized (lock) {
-
+			//初始化服务，创建rpc服务，线程池准备、ha服务，blob服务，指标注册器等
 			initializeServices(configuration, pluginManager);
 
 			// write host information into configuration
@@ -216,7 +217,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
 
 			final DispatcherResourceManagerComponentFactory dispatcherResourceManagerComponentFactory = createDispatcherResourceManagerComponentFactory(configuration);
-
+			//创建集群组件
 			clusterComponent = dispatcherResourceManagerComponentFactory.create(
 				configuration,
 				ioExecutor,
@@ -228,9 +229,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 				archivedExecutionGraphStore,
 				new RpcMetricQueryServiceRetriever(metricRegistry.getMetricQueryServiceRpcService()),
 				this);
-
+			//设置关闭服务策略
 			clusterComponent.getShutDownFuture().whenComplete(
 				(ApplicationStatus applicationStatus, Throwable throwable) -> {
+					//出行异常时关闭
 					if (throwable != null) {
 						shutDownAsync(
 							ApplicationStatus.UNKNOWN,
@@ -239,6 +241,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 					} else {
 						// This is the general shutdown path. If a separate more specific shutdown was
 						// already triggered, this will do nothing
+						//正常关闭
 						shutDownAsync(
 							applicationStatus,
 							null,
@@ -265,26 +268,31 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 			// update the configuration used to create the high availability services
 			configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());
 			configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());
-
+			//线程池准备
 			ioExecutor = Executors.newFixedThreadPool(
 				ClusterEntrypointUtils.getPoolSize(configuration),
 				new ExecutorThreadFactory("cluster-io"));
+			//HA服务
 			haServices = createHaServices(configuration, ioExecutor);
+			//启动Blob服务，它负责监听传入的请求和生成线程来处理这些请求。此外，它还负责创建要存储的目录结构或临时缓存它们
 			blobServer = new BlobServer(configuration, haServices.createBlobStore());
 			blobServer.start();
+			//心跳服务
 			heartbeatServices = createHeartbeatServices(configuration);
+			//指标注册器
 			metricRegistry = createMetricRegistry(configuration, pluginManager);
-
+			//启动远程度量查询Rpc服务
 			final RpcService metricQueryServiceRpcService = MetricUtils.startRemoteMetricsRpcService(configuration, commonRpcService.getAddress());
+			//注册远程度量查询rpc服务
 			metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
 			final String hostname = RpcUtils.getHostname(commonRpcService);
-
+			//实例化进程度量组
 			processMetricGroup = MetricUtils.instantiateProcessMetricGroup(
 				metricRegistry,
 				hostname,
 				ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));
-
+			//提交Graph存储的创建
 			archivedExecutionGraphStore = createSerializableExecutionGraphStore(configuration, commonRpcService.getScheduledExecutor());
 		}
 	}
@@ -526,7 +534,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
 		final String clusterEntrypointName = clusterEntrypoint.getClass().getSimpleName();
 		try {
-			clusterEntrypoint.startCluster();
+			//启动集群
+			clusterEntrypoint.startCluster();//从本行以后，为善后相关处理
 		} catch (ClusterEntrypointException e) {
 			LOG.error(String.format("Could not start cluster entrypoint %s.", clusterEntrypointName), e);
 			System.exit(STARTUP_FAILURE_RETURN_CODE);

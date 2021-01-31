@@ -44,13 +44,14 @@ public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint
 		EnvironmentInformation.logEnvironmentInfo(LOG, StandaloneSessionClusterEntrypoint.class.getSimpleName(), args);
 		SignalHandler.register(LOG);
 		JvmShutdownSafeguard.installAsShutdownHook(LOG);
-
+//处理脚本中传入的相关参数
 		final EntrypointClusterConfiguration entrypointClusterConfiguration = ClusterEntrypointUtils.parseParametersOrExit(
 			args,
 			new EntrypointClusterConfigurationParserFactory(),
 			StandaloneSessionClusterEntrypoint.class);
+//加载相关配置
 		Configuration configuration = loadConfiguration(entrypointClusterConfiguration);
-
+		//创建并启动集群
 		StandaloneSessionClusterEntrypoint entrypoint = new StandaloneSessionClusterEntrypoint(configuration);
 
 		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
