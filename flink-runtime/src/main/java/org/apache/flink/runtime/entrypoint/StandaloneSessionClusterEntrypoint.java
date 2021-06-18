@@ -25,35 +25,37 @@ import org.apache.flink.runtime.util.EnvironmentInformation;
 import org.apache.flink.runtime.util.JvmShutdownSafeguard;
 import org.apache.flink.runtime.util.SignalHandler;
 
-/**
- * Entry point for the standalone session cluster.
- */
+/** Entry point for the standalone session cluster. */
 public class StandaloneSessionClusterEntrypoint extends SessionClusterEntrypoint {
 
-	public StandaloneSessionClusterEntrypoint(Configuration configuration) {
-		super(configuration);
-	}
+    public StandaloneSessionClusterEntrypoint(Configuration configuration) {
+        super(configuration);
+    }
 
-	@Override
-	protected DefaultDispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory(Configuration configuration) {
-		return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(StandaloneResourceManagerFactory.getInstance());
-	}
+    @Override
+    protected DefaultDispatcherResourceManagerComponentFactory
+            createDispatcherResourceManagerComponentFactory(Configuration configuration) {
+        return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
+                StandaloneResourceManagerFactory.getInstance());
+    }
 
-	public static void main(String[] args) {
-		// startup checks and logging
-		EnvironmentInformation.logEnvironmentInfo(LOG, StandaloneSessionClusterEntrypoint.class.getSimpleName(), args);
-		SignalHandler.register(LOG);
-		JvmShutdownSafeguard.installAsShutdownHook(LOG);
-//处理脚本中传入的相关参数
-		final EntrypointClusterConfiguration entrypointClusterConfiguration = ClusterEntrypointUtils.parseParametersOrExit(
-			args,
-			new EntrypointClusterConfigurationParserFactory(),
-			StandaloneSessionClusterEntrypoint.class);
-//加载相关配置
-		Configuration configuration = loadConfiguration(entrypointClusterConfiguration);
-		//创建并启动集群
-		StandaloneSessionClusterEntrypoint entrypoint = new StandaloneSessionClusterEntrypoint(configuration);
+    public static void main(String[] args) {
+        // startup checks and logging
+        EnvironmentInformation.logEnvironmentInfo(
+                LOG, StandaloneSessionClusterEntrypoint.class.getSimpleName(), args);
+        SignalHandler.register(LOG);
+        JvmShutdownSafeguard.installAsShutdownHook(LOG);
 
-		ClusterEntrypoint.runClusterEntrypoint(entrypoint);
-	}
+        final EntrypointClusterConfiguration entrypointClusterConfiguration =
+                ClusterEntrypointUtils.parseParametersOrExit(
+                        args,
+                        new EntrypointClusterConfigurationParserFactory(),
+                        StandaloneSessionClusterEntrypoint.class);
+        Configuration configuration = loadConfiguration(entrypointClusterConfiguration);
+
+        StandaloneSessionClusterEntrypoint entrypoint =
+                new StandaloneSessionClusterEntrypoint(configuration);
+
+        ClusterEntrypoint.runClusterEntrypoint(entrypoint);
+    }
 }
